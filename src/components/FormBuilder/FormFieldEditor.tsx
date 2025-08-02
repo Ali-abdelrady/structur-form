@@ -218,7 +218,7 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
                   <div className="space-y-3">
                     <Select
                       value={dep.field}
-                      onValueChange={(value) => updateDependency(index, { field: value })}
+                      onValueChange={(value) => updateDependency(index, { field: value, value: dep.value, action: dep.action })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select field" />
@@ -235,12 +235,12 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
                     <Input
                       placeholder="Value to match"
                       value={dep.value as string}
-                      onChange={(e) => updateDependency(index, { value: e.target.value })}
+                      onChange={(e) => updateDependency(index, { field: dep.field, value: e.target.value, action: dep.action })}
                     />
 
                     <Select
                       value={dep.action}
-                      onValueChange={(value) => updateDependency(index, { action: value as any })}
+                      onValueChange={(value) => updateDependency(index, { field: dep.field, value: dep.value, action: value as any })}
                     >
                       <SelectTrigger>
                         <SelectValue />

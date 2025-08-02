@@ -8,7 +8,7 @@ import {
   Hash, 
   List, 
   CheckSquare, 
-  RadioButton, 
+  Radio, 
   FileText, 
   Calendar,
   Upload,
@@ -126,7 +126,7 @@ const fieldTypes = [
   {
     type: 'radio' as const,
     label: 'Radio Buttons',
-    icon: RadioButton,
+    icon: Radio,
     description: 'Single choice selection',
     defaultField: {
       type: 'radio' as const,
