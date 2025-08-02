@@ -22,11 +22,19 @@ export interface FormField {
   className?: string;
 }
 
+export interface FormStep {
+  id: string;
+  name: string;
+  fields: FormField[];
+}
+
 export interface FormSchema {
   id: string;
   name: string;
   description?: string;
   fields: FormField[];
+  steps?: FormStep[];
+  isMultiStep?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

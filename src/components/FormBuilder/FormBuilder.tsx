@@ -7,7 +7,8 @@ import FormCanvas from './FormCanvas';
 import FormPreview from './FormPreview';
 import FormTemplates from './FormTemplates';
 import FormSettings from './FormSettings';
-import { FormSchema, FormField } from '@/types/form';
+import StepsManager from './StepsManager';
+import { FormSchema, FormField, FormStep } from '@/types/form';
 import { Button } from '@/components/ui/button';
 import { Save, Download, Upload, Eye, Settings, Palette } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -18,55 +19,163 @@ const FormBuilder = () => {
     name: 'Untitled Form',
     description: '',
     fields: [],
+    steps: [],
+    isMultiStep: false,
     createdAt: new Date(),
     updatedAt: new Date()
   });
+  
+  const [currentStepId, setCurrentStepId] = useState<string | null>(null);
   
   const [activeTab, setActiveTab] = useState('builder');
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   const addField = (field: FormField) => {
-    setCurrentForm(prev => ({
-      ...prev,
-      fields: [...prev.fields, { ...field, id: Date.now().toString() }],
-      updatedAt: new Date()
-    }));
+    const newField = { ...field, id: Date.now().toString() };
+    
+    setCurrentForm(prev => {
+      if (prev.isMultiStep && currentStepId && prev.steps) {
+        // Add to specific step
+        const updatedSteps = prev.steps.map(step =>
+          step.id === currentStepId
+            ? { ...step, fields: [...step.fields, newField] }
+            : step
+        );
+        return {
+          ...prev,
+          steps: updatedSteps,
+          updatedAt: new Date()
+        };
+      } else {
+        // Add to main fields array
+        return {
+          ...prev,
+          fields: [...prev.fields, newField],
+          updatedAt: new Date()
+        };
+      }
+    });
   };
 
   const updateField = (fieldId: string, updates: Partial<FormField>) => {
-    setCurrentForm(prev => ({
-      ...prev,
-      fields: prev.fields.map(field => 
-        field.id === fieldId ? { ...field, ...updates } : field
-      ),
-      updatedAt: new Date()
-    }));
+    setCurrentForm(prev => {
+      if (prev.isMultiStep && prev.steps) {
+        const updatedSteps = prev.steps.map(step => ({
+          ...step,
+          fields: step.fields.map(field =>
+            field.id === fieldId ? { ...field, ...updates } : field
+          )
+        }));
+        return {
+          ...prev,
+          steps: updatedSteps,
+          updatedAt: new Date()
+        };
+      } else {
+        return {
+          ...prev,
+          fields: prev.fields.map(field => 
+            field.id === fieldId ? { ...field, ...updates } : field
+          ),
+          updatedAt: new Date()
+        };
+      }
+    });
   };
 
   const removeField = (fieldId: string) => {
-    setCurrentForm(prev => ({
-      ...prev,
-      fields: prev.fields.filter(field => field.id !== fieldId),
-      updatedAt: new Date()
-    }));
+    setCurrentForm(prev => {
+      if (prev.isMultiStep && prev.steps) {
+        const updatedSteps = prev.steps.map(step => ({
+          ...step,
+          fields: step.fields.filter(field => field.id !== fieldId)
+        }));
+        return {
+          ...prev,
+          steps: updatedSteps,
+          updatedAt: new Date()
+        };
+      } else {
+        return {
+          ...prev,
+          fields: prev.fields.filter(field => field.id !== fieldId),
+          updatedAt: new Date()
+        };
+      }
+    });
   };
 
   const reorderFields = (dragIndex: number, hoverIndex: number) => {
-    const fields = [...currentForm.fields];
-    const draggedField = fields[dragIndex];
-    fields.splice(dragIndex, 1);
-    fields.splice(hoverIndex, 0, draggedField);
-    
-    setCurrentForm(prev => ({
-      ...prev,
-      fields,
-      updatedAt: new Date()
-    }));
+    setCurrentForm(prev => {
+      if (prev.isMultiStep && currentStepId && prev.steps) {
+        const currentStep = prev.steps.find(step => step.id === currentStepId);
+        if (!currentStep) return prev;
+        
+        const fields = [...currentStep.fields];
+        const draggedField = fields[dragIndex];
+        fields.splice(dragIndex, 1);
+        fields.splice(hoverIndex, 0, draggedField);
+        
+        const updatedSteps = prev.steps.map(step =>
+          step.id === currentStepId ? { ...step, fields } : step
+        );
+        
+        return {
+          ...prev,
+          steps: updatedSteps,
+          updatedAt: new Date()
+        };
+      } else {
+        const fields = [...prev.fields];
+        const draggedField = fields[dragIndex];
+        fields.splice(dragIndex, 1);
+        fields.splice(hoverIndex, 0, draggedField);
+        
+        return {
+          ...prev,
+          fields,
+          updatedAt: new Date()
+        };
+      }
+    });
   };
 
   const exportForm = () => {
-    const dataStr = JSON.stringify(currentForm, null, 2);
+    // Convert to the new format
+    const exportData: any = {};
+    
+    if (currentForm.isMultiStep && currentForm.steps) {
+      // Multi-step form
+      currentForm.steps.forEach((step, index) => {
+        exportData[`step${index + 1}`] = step.fields.map(field => ({
+          label: field.label,
+          type: field.type,
+          placeholder: field.placeholder || '',
+          validation: field.validation || {},
+          dependsOn: field.dependencies ? {
+            field: field.dependencies[0]?.field || '',
+            value: field.dependencies[0]?.value || '',
+            action: field.dependencies[0]?.action || 'show'
+          } : {}
+        }));
+      });
+    } else {
+      // Single step form
+      exportData.step1 = currentForm.fields.map(field => ({
+        label: field.label,
+        type: field.type,
+        placeholder: field.placeholder || '',
+        validation: field.validation || {},
+        dependsOn: field.dependencies ? {
+          field: field.dependencies[0]?.field || '',
+          value: field.dependencies[0]?.value || '',
+          action: field.dependencies[0]?.action || 'show'
+        } : {}
+      }));
+    }
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     
     const exportFileDefaultName = `${currentForm.name.replace(/\s+/g, '_')}_form.json`;
@@ -111,6 +220,51 @@ const FormBuilder = () => {
     reader.readAsText(file);
   };
 
+  const updateSteps = (steps: FormStep[]) => {
+    setCurrentForm(prev => ({
+      ...prev,
+      steps,
+      updatedAt: new Date()
+    }));
+  };
+
+  const toggleMultiStep = (isMultiStep: boolean) => {
+    setCurrentForm(prev => {
+      if (isMultiStep && prev.fields.length > 0) {
+        // Convert existing fields to first step
+        const firstStep: FormStep = {
+          id: Date.now().toString(),
+          name: 'Step 1',
+          fields: [...prev.fields]
+        };
+        return {
+          ...prev,
+          isMultiStep: true,
+          steps: [firstStep],
+          fields: [],
+          updatedAt: new Date()
+        };
+      } else if (!isMultiStep && prev.steps && prev.steps.length > 0) {
+        // Convert all step fields back to main fields array
+        const allFields = prev.steps.flatMap(step => step.fields);
+        return {
+          ...prev,
+          isMultiStep: false,
+          steps: [],
+          fields: allFields,
+          updatedAt: new Date()
+        };
+      }
+      return {
+        ...prev,
+        isMultiStep,
+        steps: isMultiStep ? [] : undefined,
+        updatedAt: new Date()
+      };
+    });
+    setCurrentStepId(null);
+  };
+
   const saveTemplate = () => {
     const templates = JSON.parse(localStorage.getItem('formTemplates') || '[]');
     const template = {
@@ -128,6 +282,18 @@ const FormBuilder = () => {
       title: "Template Saved",
       description: "Your form has been saved as a template!",
     });
+  };
+
+  // Get current form data for canvas
+  const getCurrentFormData = () => {
+    if (currentForm.isMultiStep && currentStepId && currentForm.steps) {
+      const currentStep = currentForm.steps.find(step => step.id === currentStepId);
+      return {
+        ...currentForm,
+        fields: currentStep?.fields || []
+      };
+    }
+    return currentForm;
   };
 
   return (
@@ -166,7 +332,16 @@ const FormBuilder = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4">
+          <StepsManager
+            steps={currentForm.steps || []}
+            isMultiStep={currentForm.isMultiStep || false}
+            onUpdateSteps={updateSteps}
+            onToggleMultiStep={toggleMultiStep}
+            currentStepId={currentStepId}
+            onSelectStep={setCurrentStepId}
+          />
+          
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="fields" className="text-xs">
@@ -198,12 +373,24 @@ const FormBuilder = () => {
 
         <div className={`${showPreview ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
           <Card className="p-6 min-h-[600px]">
-            <FormCanvas
-              form={currentForm}
-              onUpdateField={updateField}
-              onRemoveField={removeField}
-              onReorderFields={reorderFields}
-            />
+            {currentForm.isMultiStep && (!currentStepId || !currentForm.steps?.find(s => s.id === currentStepId)) ? (
+              <div className="flex flex-col items-center justify-center h-96 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Settings className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">Select a Step</h3>
+                <p className="text-gray-500 mb-6 max-w-md">
+                  Choose a step from the steps panel to start adding fields to it.
+                </p>
+              </div>
+            ) : (
+              <FormCanvas
+                form={getCurrentFormData()}
+                onUpdateField={updateField}
+                onRemoveField={removeField}
+                onReorderFields={reorderFields}
+              />
+            )}
           </Card>
         </div>
 
