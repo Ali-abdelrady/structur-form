@@ -67,6 +67,9 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
     onUpdateField({ dependencies: currentDeps.filter((_, i) => i !== index) });
   };
 
+  // Filter out the current field and ensure we have valid fields with IDs
+  const availableFields = allFields.filter(f => f.id !== field.id && f.id && f.id.trim() !== '');
+
   return (
     <Card className="fixed right-4 top-4 bottom-4 w-80 z-50 shadow-lg overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
@@ -217,30 +220,48 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
                 <Card key={index} className="p-3">
                   <div className="space-y-3">
                     <Select
-                      value={dep.field}
-                      onValueChange={(value) => updateDependency(index, { field: value, value: dep.value, action: dep.action })}
+                      value={dep.field || ''}
+                      onValueChange={(value) => updateDependency(index, { 
+                        field: value, 
+                        value: dep.value, 
+                        action: dep.action 
+                      })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select field" />
                       </SelectTrigger>
                       <SelectContent>
-                        {allFields.filter(f => f.id !== field.id).map(f => (
-                          <SelectItem key={f.id} value={f.id}>
-                            {f.label}
+                        {availableFields.length > 0 ? (
+                          availableFields.map(f => (
+                            <SelectItem key={f.id} value={f.id}>
+                              {f.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="no-fields" disabled>
+                            No other fields available
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
 
                     <Input
                       placeholder="Value to match"
                       value={dep.value as string}
-                      onChange={(e) => updateDependency(index, { field: dep.field, value: e.target.value, action: dep.action })}
+                      onChange={(e) => updateDependency(index, { 
+                        field: dep.field, 
+                        value: e.target.value, 
+                        action: dep.action 
+                      })}
                     />
 
                     <Select
                       value={dep.action}
-                      onValueChange={(value) => updateDependency(index, { field: dep.field, value: dep.value, action: value as any })}
+                      onValueChange={(value) => updateDependency(index, { 
+                        field: dep.field, 
+                        value: dep.value, 
+                        action: value as any 
+                      })}
                     >
                       <SelectTrigger>
                         <SelectValue />
