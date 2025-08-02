@@ -36,6 +36,17 @@ const FormCanvas = ({ form, onUpdateField, onRemoveField, onReorderFields }: For
     setDraggedIndex(null);
   };
 
+  const handleRemoveField = (fieldId: string) => {
+    // If the field being removed is currently selected, clear the selection
+    if (selectedFieldId === fieldId) {
+      setSelectedFieldId(null);
+    }
+    onRemoveField(fieldId);
+  };
+
+  // Find the currently selected field
+  const selectedField = selectedFieldId ? form.fields.find(f => f.id === selectedFieldId) : null;
+
   if (form.fields.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-96 text-center">
@@ -116,7 +127,7 @@ const FormCanvas = ({ form, onUpdateField, onRemoveField, onReorderFields }: For
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onRemoveField(field.id);
+                  handleRemoveField(field.id);
                 }}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
@@ -127,11 +138,11 @@ const FormCanvas = ({ form, onUpdateField, onRemoveField, onReorderFields }: For
         </Card>
       ))}
 
-      {selectedFieldId && (
+      {selectedField && (
         <FormFieldEditor
-          field={form.fields.find(f => f.id === selectedFieldId)!}
+          field={selectedField}
           allFields={form.fields}
-          onUpdateField={(updates) => onUpdateField(selectedFieldId, updates)}
+          onUpdateField={(updates) => onUpdateField(selectedField.id, updates)}
           onClose={() => setSelectedFieldId(null)}
         />
       )}
