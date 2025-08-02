@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { FormStep, FormField } from '@/types/form';
 import { Plus, Trash2, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -49,6 +50,12 @@ const StepsManager = ({
     ));
   };
 
+  const updateStepDescription = (stepId: string, description: string) => {
+    onUpdateSteps(steps.map(step => 
+      step.id === stepId ? { ...step, description } : step
+    ));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -75,12 +82,22 @@ const StepsManager = ({
                   onClick={() => onSelectStep(step.id)}
                 >
                   <span className="text-sm font-medium">Step {index + 1}:</span>
-                  <Input
-                    value={step.name}
-                    onChange={(e) => updateStepName(step.id, e.target.value)}
-                    className="flex-1 h-8"
-                    onClick={(e) => e.stopPropagation()}
-                  />
+                  <div className="flex-1 space-y-2">
+                    <Input
+                      value={step.name}
+                      onChange={(e) => updateStepName(step.id, e.target.value)}
+                      className="h-8"
+                      placeholder="Step title"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <Textarea
+                      value={step.description || ''}
+                      onChange={(e) => updateStepDescription(step.id, e.target.value)}
+                      className="h-16 text-xs resize-none"
+                      placeholder="Step description"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
                   <span className="text-xs text-gray-500">
                     {step.fields.length} fields
                   </span>

@@ -25,6 +25,7 @@ export interface FormField {
 export interface FormStep {
   id: string;
   name: string;
+  description?: string;
   fields: FormField[];
 }
 

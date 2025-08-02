@@ -143,12 +143,43 @@ const FormBuilder = () => {
 
   const exportForm = () => {
     // Convert to the new format
-    const exportData: any = {};
+    const exportData: any = {
+      form: {
+        title: currentForm.name,
+        description: currentForm.description || ''
+      }
+    };
     
     if (currentForm.isMultiStep && currentForm.steps) {
       // Multi-step form
       currentForm.steps.forEach((step, index) => {
-        exportData[`step${index + 1}`] = step.fields.map(field => ({
+        const stepFields = [
+          {
+            title: step.name,
+            description: step.description || ''
+          },
+          ...step.fields.map(field => ({
+            label: field.label,
+            type: field.type,
+            placeholder: field.placeholder || '',
+            validation: field.validation || {},
+            dependsOn: field.dependencies ? {
+              field: field.dependencies[0]?.field || '',
+              value: field.dependencies[0]?.value || '',
+              action: field.dependencies[0]?.action || 'show'
+            } : {}
+          }))
+        ];
+        exportData[`step${index + 1}`] = stepFields;
+      });
+    } else {
+      // Single step form
+      exportData.step1 = [
+        {
+          title: currentForm.name,
+          description: currentForm.description || ''
+        },
+        ...currentForm.fields.map(field => ({
           label: field.label,
           type: field.type,
           placeholder: field.placeholder || '',
@@ -158,21 +189,8 @@ const FormBuilder = () => {
             value: field.dependencies[0]?.value || '',
             action: field.dependencies[0]?.action || 'show'
           } : {}
-        }));
-      });
-    } else {
-      // Single step form
-      exportData.step1 = currentForm.fields.map(field => ({
-        label: field.label,
-        type: field.type,
-        placeholder: field.placeholder || '',
-        validation: field.validation || {},
-        dependsOn: field.dependencies ? {
-          field: field.dependencies[0]?.field || '',
-          value: field.dependencies[0]?.value || '',
-          action: field.dependencies[0]?.action || 'show'
-        } : {}
-      }));
+        }))
+      ];
     }
     
     const dataStr = JSON.stringify(exportData, null, 2);
