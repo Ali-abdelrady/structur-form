@@ -23,15 +23,18 @@ interface FormPreviewProps {
 }
 
 const FormPreview = ({ form }: FormPreviewProps) => {
-  const [formData, setFormData] = useState<any>({});
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
+  const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
-  // Create dynamic schema based on form fields
-  const createSchema = () => {
+  // Create dynamic schema based on form fields and their current visibility/requirement state
+  const createSchema = (currentVisibleFields: Set<string>, currentRequiredFields: Set<string>) => {
     const schemaObject: any = {};
     
     form.fields.forEach(field => {
+      // Only validate visible fields
+      if (!currentVisibleFields.has(field.id)) return;
+      
       let fieldSchema: any;
       
       switch (field.type) {
@@ -42,8 +45,8 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           fieldSchema = z.number({
             invalid_type_error: 'Must be a number'
           });
-          if (field.validation?.min) fieldSchema = fieldSchema.min(field.validation.min);
-          if (field.validation?.max) fieldSchema = fieldSchema.max(field.validation.max);
+          if (field.validation?.min !== undefined) fieldSchema = fieldSchema.min(field.validation.min);
+          if (field.validation?.max !== undefined) fieldSchema = fieldSchema.max(field.validation.max);
           break;
         case 'url':
           fieldSchema = z.string().url('Invalid URL');
@@ -60,9 +63,16 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           fieldSchema = z.string();
       }
       
-      if (field.required && !field.dependencies?.some(dep => dep.action === 'require')) {
-        fieldSchema = fieldSchema.min(1, `${field.label} is required`);
-      } else if (!field.required) {
+      // Check if field should be required (either originally required or made required by dependency)
+      const shouldBeRequired = field.required || currentRequiredFields.has(field.id);
+      
+      if (shouldBeRequired) {
+        if (field.type === 'checkbox') {
+          fieldSchema = fieldSchema.min(1, `${field.label} is required`);
+        } else {
+          fieldSchema = fieldSchema.min(1, `${field.label} is required`);
+        }
+      } else {
         fieldSchema = fieldSchema.optional();
       }
       
@@ -72,8 +82,9 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     return z.object(schemaObject);
   };
 
-  const schema = createSchema();
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+  const [schema, setSchema] = useState(() => createSchema(new Set(form.fields.map(f => f.id)), new Set()));
+
+  const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     resolver: zodResolver(schema),
     mode: 'onChange'
   });
@@ -83,44 +94,90 @@ const FormPreview = ({ form }: FormPreviewProps) => {
   // Handle field dependencies
   useEffect(() => {
     const newVisibleFields = new Set<string>();
+    const newRequiredFields = new Set<string>();
     
+    // First, determine base visibility and requirements
     form.fields.forEach(field => {
-      let isVisible = true;
-      let shouldRequire = field.required;
-      
-      if (field.dependencies) {
-        field.dependencies.forEach(dep => {
-          const depValue = watchedValues[dep.field];
-          const matches = Array.isArray(dep.value) 
-            ? dep.value.includes(depValue)
-            : depValue === dep.value;
-            
-          if (matches) {
-            switch (dep.action) {
-              case 'show':
-                isVisible = true;
-                break;
-              case 'hide':
-                isVisible = false;
-                break;
-              case 'require':
-                shouldRequire = true;
-                break;
-            }
-          }
-        });
+      // Fields without dependencies are visible by default
+      if (!field.dependencies || field.dependencies.length === 0) {
+        newVisibleFields.add(field.id);
       }
       
-      if (isVisible) {
-        newVisibleFields.add(field.id);
+      // Track originally required fields
+      if (field.required) {
+        newRequiredFields.add(field.id);
       }
     });
     
+    // Then apply dependency rules
+    form.fields.forEach(field => {
+      if (!field.dependencies) return;
+      
+      let fieldVisible = !field.dependencies.some(dep => dep.action === 'show' || dep.action === 'hide');
+      let fieldRequired = field.required;
+      
+      field.dependencies.forEach(dep => {
+        const depValue = watchedValues[dep.field];
+        let matches = false;
+        
+        // Handle different value matching scenarios
+        if (Array.isArray(dep.value)) {
+          matches = dep.value.includes(depValue);
+        } else {
+          matches = String(depValue) === String(dep.value);
+        }
+        
+        if (matches) {
+          switch (dep.action) {
+            case 'show':
+              fieldVisible = true;
+              break;
+            case 'hide':
+              fieldVisible = false;
+              break;
+            case 'require':
+              fieldRequired = true;
+              break;
+          }
+        } else {
+          // If condition not met, apply opposite logic for show/hide
+          if (dep.action === 'show') {
+            fieldVisible = false;
+          } else if (dep.action === 'hide') {
+            fieldVisible = true;
+          }
+        }
+      });
+      
+      if (fieldVisible) {
+        newVisibleFields.add(field.id);
+      }
+      
+      if (fieldRequired) {
+        newRequiredFields.add(field.id);
+      }
+    });
+    
+    // Update state
     setVisibleFields(newVisibleFields);
+    setRequiredFields(newRequiredFields);
+    
+    // Update schema when visibility or requirements change
+    const newSchema = createSchema(newVisibleFields, newRequiredFields);
+    setSchema(newSchema);
+    
   }, [watchedValues, form.fields]);
 
   const onSubmit = (data: any) => {
-    console.log('Form submitted:', data);
+    // Filter data to only include visible fields
+    const visibleData = Object.keys(data)
+      .filter(key => visibleFields.has(key))
+      .reduce((obj, key) => {
+        obj[key] = data[key];
+        return obj;
+      }, {} as any);
+    
+    console.log('Form submitted:', visibleData);
     toast({
       title: "Form Submitted!",
       description: "Check the console for form data.",
@@ -130,6 +187,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
   const renderField = (field: FormField) => {
     if (!visibleFields.has(field.id)) return null;
 
+    const isRequired = field.required || requiredFields.has(field.id);
     const commonProps = {
       id: field.id,
       placeholder: field.placeholder
@@ -145,7 +203,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -166,7 +224,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -187,7 +245,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -208,7 +266,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -236,7 +294,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -260,7 +318,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -294,7 +352,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -333,7 +391,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           <div key={field.id} className="space-y-2">
             <Label htmlFor={field.id}>
               {field.label}
-              {field.required && <span className="text-red-500 ml-1">*</span>}
+              {isRequired && <span className="text-red-500 ml-1">*</span>}
             </Label>
             {field.description && (
               <p className="text-sm text-gray-600">{field.description}</p>
@@ -378,6 +436,13 @@ const FormPreview = ({ form }: FormPreviewProps) => {
           Submit Form
         </Button>
       </form>
+      
+      {/* Debug info - remove in production */}
+      <div className="mt-4 p-2 bg-gray-50 rounded text-xs">
+        <p><strong>Visible fields:</strong> {Array.from(visibleFields).join(', ')}</p>
+        <p><strong>Required fields:</strong> {Array.from(requiredFields).join(', ')}</p>
+        <p><strong>Current values:</strong> {JSON.stringify(watchedValues)}</p>
+      </div>
     </div>
   );
 };
