@@ -99,6 +99,17 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
             </div>
 
             <div>
+              <Label htmlFor="name">Name (Key)</Label>
+              <Input
+                id="name"
+                value={field.name}
+                onChange={(e) => onUpdateField({ name: e.target.value })}
+                className="mt-1"
+                placeholder="fieldName"
+              />
+            </div>
+
+            <div>
               <Label htmlFor="placeholder">Placeholder</Label>
               <Input
                 id="placeholder"
@@ -167,39 +178,76 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
           <TabsContent value="options" className="space-y-4 mt-4">
             {['select', 'radio', 'checkbox'].includes(field.type) ? (
               <>
-                <div className="flex items-center justify-between">
-                  <Label>Options</Label>
-                  <Button onClick={addOption} size="sm">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Add
-                  </Button>
+                <div className="flex items-center space-x-2 mb-3">
+                  <Switch
+                    id="isComeFromApi"
+                    checked={field.isComeFromApi || false}
+                    onCheckedChange={(isComeFromApi) => onUpdateField({ isComeFromApi })}
+                  />
+                  <Label htmlFor="isComeFromApi">Load from API</Label>
                 </div>
-                
-                <div className="space-y-3">
-                  {(field.options || []).map((option, index) => (
-                    <div key={index} className="flex space-x-2">
+
+                {field.isComeFromApi ? (
+                  <>
+                    <div>
+                      <Label htmlFor="endpoint">API Endpoint</Label>
                       <Input
-                        placeholder="Label"
-                        value={option.label}
-                        onChange={(e) => updateOption(index, 'label', e.target.value)}
-                        className="flex-1"
+                        id="endpoint"
+                        value={field.endpoint || ''}
+                        onChange={(e) => onUpdateField({ endpoint: e.target.value })}
+                        className="mt-1"
+                        placeholder="/api/options"
                       />
-                      <Input
-                        placeholder="Value"
-                        value={option.value}
-                        onChange={(e) => updateOption(index, 'value', e.target.value)}
-                        className="flex-1"
+                    </div>
+                    <div>
+                      <Label htmlFor="body">Request Body</Label>
+                      <Textarea
+                        id="body"
+                        value={field.body || ''}
+                        onChange={(e) => onUpdateField({ body: e.target.value })}
+                        className="mt-1"
+                        placeholder='{"route":"api.cs.index","params":{}}'
+                        rows={3}
                       />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeOption(index)}
-                      >
-                        <Trash2 className="w-4 h-4" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <Label>Options</Label>
+                      <Button onClick={addOption} size="sm">
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add
                       </Button>
                     </div>
-                  ))}
-                </div>
+                    
+                    <div className="space-y-3">
+                      {(field.options || []).map((option, index) => (
+                        <div key={index} className="flex space-x-2">
+                          <Input
+                            placeholder="Label"
+                            value={option.label}
+                            onChange={(e) => updateOption(index, 'label', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            placeholder="Value"
+                            value={option.value}
+                            onChange={(e) => updateOption(index, 'value', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeOption(index)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             ) : (
               <p className="text-gray-500 text-sm">This field type doesn't support options.</p>

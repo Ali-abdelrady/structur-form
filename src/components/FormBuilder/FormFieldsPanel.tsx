@@ -30,6 +30,7 @@ const fieldTypes = [
     defaultField: {
       type: 'text' as const,
       label: 'Text Field',
+      name: 'textField',
       placeholder: 'Enter text...',
       required: false
     }
@@ -42,6 +43,7 @@ const fieldTypes = [
     defaultField: {
       type: 'email' as const,
       label: 'Email Address',
+      name: 'emailAddress',
       placeholder: 'Enter email...',
       required: false
     }
@@ -54,6 +56,7 @@ const fieldTypes = [
     defaultField: {
       type: 'number' as const,
       label: 'Number Field',
+      name: 'numberField',
       placeholder: 'Enter number...',
       required: false
     }
@@ -66,6 +69,7 @@ const fieldTypes = [
     defaultField: {
       type: 'password' as const,
       label: 'Password',
+      name: 'password',
       placeholder: 'Enter password...',
       required: false
     }
@@ -78,6 +82,7 @@ const fieldTypes = [
     defaultField: {
       type: 'phone' as const,
       label: 'Phone Number',
+      name: 'phoneNumber',
       placeholder: 'Enter phone number...',
       required: false
     }
@@ -90,6 +95,7 @@ const fieldTypes = [
     defaultField: {
       type: 'url' as const,
       label: 'Website URL',
+      name: 'websiteUrl',
       placeholder: 'https://...',
       required: false
     }
@@ -102,6 +108,7 @@ const fieldTypes = [
     defaultField: {
       type: 'textarea' as const,
       label: 'Text Area',
+      name: 'textArea',
       placeholder: 'Enter detailed text...',
       required: false
     }
@@ -114,6 +121,7 @@ const fieldTypes = [
     defaultField: {
       type: 'select' as const,
       label: 'Select Option',
+      name: 'selectOption',
       placeholder: 'Choose an option...',
       required: false,
       options: [
@@ -131,6 +139,7 @@ const fieldTypes = [
     defaultField: {
       type: 'radio' as const,
       label: 'Radio Selection',
+      name: 'radioSelection',
       required: false,
       options: [
         { label: 'Option A', value: 'optionA' },
@@ -147,6 +156,7 @@ const fieldTypes = [
     defaultField: {
       type: 'checkbox' as const,
       label: 'Checkbox Selection',
+      name: 'checkboxSelection',
       required: false,
       options: [
         { label: 'Choice 1', value: 'choice1' },
@@ -163,6 +173,7 @@ const fieldTypes = [
     defaultField: {
       type: 'date' as const,
       label: 'Date Field',
+      name: 'dateField',
       required: false
     }
   },
@@ -174,6 +185,7 @@ const fieldTypes = [
     defaultField: {
       type: 'file' as const,
       label: 'File Upload',
+      name: 'fileUpload',
       required: false
     }
   }

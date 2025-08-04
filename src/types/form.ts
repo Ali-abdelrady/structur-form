@@ -3,10 +3,14 @@ export interface FormField {
   id: string;
   type: 'text' | 'email' | 'number' | 'select' | 'checkbox' | 'radio' | 'textarea' | 'date' | 'file' | 'phone' | 'url' | 'password';
   label: string;
+  name: string; // key to send data
   placeholder?: string;
   required: boolean;
   options?: { label: string; value: string }[];
   validation?: {
+    required?: boolean;
+    minLength?: number;
+    maxLength?: number;
     min?: number;
     max?: number;
     pattern?: string;
@@ -17,6 +21,13 @@ export interface FormField {
     value: string | string[];
     action: 'show' | 'hide' | 'require';
   }[];
+  dependsOn?: {
+    field: string;
+    value: string | boolean;
+  };
+  isComeFromApi?: boolean;
+  endpoint?: string;
+  body?: string;
   defaultValue?: any;
   description?: string;
   className?: string;

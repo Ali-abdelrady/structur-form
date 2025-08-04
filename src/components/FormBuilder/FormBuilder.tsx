@@ -144,53 +144,59 @@ const FormBuilder = () => {
   const exportForm = () => {
     // Convert to the new format
     const exportData: any = {
-      form: {
-        title: currentForm.name,
-        description: currentForm.description || ''
-      }
+      title: currentForm.name,
+      description: currentForm.description || '',
+      steps: []
     };
     
     if (currentForm.isMultiStep && currentForm.steps) {
       // Multi-step form
-      currentForm.steps.forEach((step, index) => {
-        const stepFields = [
-          {
-            title: step.name,
-            description: step.description || ''
-          },
-          ...step.fields.map(field => ({
-            label: field.label,
-            type: field.type,
-            placeholder: field.placeholder || '',
-            validation: field.validation || {},
-            dependsOn: field.dependencies ? {
-              field: field.dependencies[0]?.field || '',
-              value: field.dependencies[0]?.value || '',
-              action: field.dependencies[0]?.action || 'show'
-            } : {}
-          }))
-        ];
-        exportData[`step${index + 1}`] = stepFields;
-      });
-    } else {
-      // Single step form
-      exportData.step1 = [
-        {
-          title: currentForm.name,
-          description: currentForm.description || ''
-        },
-        ...currentForm.fields.map(field => ({
+      exportData.steps = currentForm.steps.map(step => ({
+        title: step.name,
+        description: step.description || '',
+        fields: step.fields.map(field => ({
           label: field.label,
+          name: field.name || field.label.toLowerCase().replace(/\s+/g, ''),
           type: field.type,
           placeholder: field.placeholder || '',
-          validation: field.validation || {},
-          dependsOn: field.dependencies ? {
-            field: field.dependencies[0]?.field || '',
-            value: field.dependencies[0]?.value || '',
-            action: field.dependencies[0]?.action || 'show'
-          } : {}
+          validation: {
+            required: field.required,
+            ...field.validation
+          },
+          dependsOn: field.dependsOn || (field.dependencies && field.dependencies[0] ? {
+            field: field.dependencies[0].field,
+            value: field.dependencies[0].value
+          } : {}),
+          isComeFromApi: field.isComeFromApi || false,
+          endpoint: field.endpoint || '',
+          body: field.body || '',
+          options: field.options || []
         }))
-      ];
+      }));
+    } else {
+      // Single step form
+      exportData.steps = [{
+        title: currentForm.name,
+        description: currentForm.description || '',
+        fields: currentForm.fields.map(field => ({
+          label: field.label,
+          name: field.name || field.label.toLowerCase().replace(/\s+/g, ''),
+          type: field.type,
+          placeholder: field.placeholder || '',
+          validation: {
+            required: field.required,
+            ...field.validation
+          },
+          dependsOn: field.dependsOn || (field.dependencies && field.dependencies[0] ? {
+            field: field.dependencies[0].field,
+            value: field.dependencies[0].value
+          } : {}),
+          isComeFromApi: field.isComeFromApi || false,
+          endpoint: field.endpoint || '',
+          body: field.body || '',
+          options: field.options || []
+        }))
+      }];
     }
     
     const dataStr = JSON.stringify(exportData, null, 2);
