@@ -25,13 +25,33 @@ interface FormPreviewProps {
 const FormPreview = ({ form }: FormPreviewProps) => {
   const [visibleFields, setVisibleFields] = useState<Set<string>>(new Set());
   const [requiredFields, setRequiredFields] = useState<Set<string>>(new Set());
+  const [currentStep, setCurrentStep] = useState(0);
   const { toast } = useToast();
+
+  // Get all fields - either from steps or direct fields
+  const getAllFields = () => {
+    if (form.isMultiStep && form.steps) {
+      return form.steps.flatMap(step => step.fields);
+    }
+    return form.fields;
+  };
+
+  // Get current step fields for multi-step forms
+  const getCurrentStepFields = () => {
+    if (form.isMultiStep && form.steps && form.steps[currentStep]) {
+      return form.steps[currentStep].fields;
+    }
+    return form.fields;
+  };
+
+  const allFields = getAllFields();
+  const currentStepFields = getCurrentStepFields();
 
   // Create dynamic schema based on form fields and their current visibility/requirement state
   const createSchema = (currentVisibleFields: Set<string>, currentRequiredFields: Set<string>) => {
     const schemaObject: any = {};
     
-    form.fields.forEach(field => {
+    allFields.forEach(field => {
       // Only validate visible fields
       if (!currentVisibleFields.has(field.id)) return;
       
@@ -82,7 +102,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     return z.object(schemaObject);
   };
 
-  const [schema, setSchema] = useState(() => createSchema(new Set(form.fields.map(f => f.id)), new Set()));
+  const [schema, setSchema] = useState(() => createSchema(new Set(allFields.map(f => f.id)), new Set()));
 
   const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     resolver: zodResolver(schema),
@@ -97,7 +117,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     const newRequiredFields = new Set<string>();
     
     // First, determine base visibility and requirements
-    form.fields.forEach(field => {
+    allFields.forEach(field => {
       // Fields without dependencies are visible by default
       if (!field.dependencies || field.dependencies.length === 0) {
         newVisibleFields.add(field.id);
@@ -110,14 +130,16 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     });
     
     // Then apply dependency rules
-    form.fields.forEach(field => {
+    allFields.forEach(field => {
       if (!field.dependencies) return;
       
       let fieldVisible = !field.dependencies.some(dep => dep.action === 'show' || dep.action === 'hide');
       let fieldRequired = field.required;
       
       field.dependencies.forEach(dep => {
-        const depValue = watchedValues[dep.field];
+        // Use field ID for dependency matching if field has dependsOn
+        const depFieldKey = field.dependsOn ? field.id : dep.field;
+        const depValue = watchedValues[depFieldKey];
         let matches = false;
         
         // Handle different value matching scenarios
@@ -166,7 +188,7 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     const newSchema = createSchema(newVisibleFields, newRequiredFields);
     setSchema(newSchema);
     
-  }, [watchedValues, form.fields]);
+  }, [watchedValues, allFields]);
 
   const onSubmit = (data: any) => {
     // Filter data to only include visible fields
@@ -412,13 +434,25 @@ const FormPreview = ({ form }: FormPreviewProps) => {
     }
   };
 
-  if (form.fields.length === 0) {
+  if (allFields.length === 0) {
     return (
       <div className="text-center text-gray-500">
         <p>Add fields to see the preview</p>
       </div>
     );
   }
+
+  const handleNextStep = () => {
+    if (form.isMultiStep && form.steps && currentStep < form.steps.length - 1) {
+      setCurrentStep(prev => prev + 1);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -427,14 +461,46 @@ const FormPreview = ({ form }: FormPreviewProps) => {
         {form.description && (
           <p className="text-gray-600 mt-1">{form.description}</p>
         )}
+        
+        {form.isMultiStep && form.steps && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500">
+              Step {currentStep + 1} of {form.steps.length}: {form.steps[currentStep]?.name}
+            </p>
+            {form.steps[currentStep]?.description && (
+              <p className="text-sm text-gray-600 mt-1">{form.steps[currentStep].description}</p>
+            )}
+          </div>
+        )}
       </div>
       
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {form.fields.map(renderField)}
+        {currentStepFields.map(renderField)}
         
-        <Button type="submit" className="w-full mt-6">
-          Submit Form
-        </Button>
+        {form.isMultiStep && form.steps ? (
+          <div className="flex justify-between mt-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handlePrevStep}
+              disabled={currentStep === 0}
+            >
+              Previous
+            </Button>
+            
+            {currentStep === form.steps.length - 1 ? (
+              <Button type="submit">Submit Form</Button>
+            ) : (
+              <Button type="button" onClick={handleNextStep}>
+                Next
+              </Button>
+            )}
+          </div>
+        ) : (
+          <Button type="submit" className="w-full mt-6">
+            Submit Form
+          </Button>
+        )}
       </form>
       
       {/* Debug info - remove in production */}

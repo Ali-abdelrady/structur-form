@@ -8,6 +8,7 @@ import { FileText, Users, Building, Calendar, Phone, Mail } from 'lucide-react';
 
 interface FormTemplatesProps {
   onSelectTemplate: (form: FormSchema) => void;
+  preserveMultiStep?: boolean;
 }
 
 const defaultTemplates: FormTemplate[] = [
@@ -301,7 +302,7 @@ const defaultTemplates: FormTemplate[] = [
   }
 ];
 
-const FormTemplates = ({ onSelectTemplate }: FormTemplatesProps) => {
+const FormTemplates = ({ onSelectTemplate, preserveMultiStep = false }: FormTemplatesProps) => {
   const [customTemplates, setCustomTemplates] = useState<FormTemplate[]>([]);
 
   useEffect(() => {
@@ -356,7 +357,21 @@ const FormTemplates = ({ onSelectTemplate }: FormTemplatesProps) => {
             <Card 
               key={template.id} 
               className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-blue-200"
-              onClick={() => onSelectTemplate(template.schema)}
+              onClick={() => {
+                const templateForm = { ...template.schema };
+                if (preserveMultiStep) {
+                  // Convert template fields to a single step if in multi-step mode
+                  templateForm.isMultiStep = true;
+                  templateForm.steps = [{
+                    id: Date.now().toString(),
+                    name: 'Step 1',
+                    description: 'Template fields',
+                    fields: templateForm.fields
+                  }];
+                  templateForm.fields = [];
+                }
+                onSelectTemplate(templateForm);
+              }}
             >
               <CardContent className="p-4">
                 <div className="flex items-start space-x-3">

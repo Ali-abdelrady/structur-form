@@ -386,7 +386,10 @@ const FormBuilder = () => {
             </TabsContent>
             
             <TabsContent value="templates" className="mt-4">
-              <FormTemplates onSelectTemplate={setCurrentForm} />
+              <FormTemplates 
+                onSelectTemplate={setCurrentForm} 
+                preserveMultiStep={currentForm.isMultiStep}
+              />
             </TabsContent>
             
             <TabsContent value="settings" className="mt-4">

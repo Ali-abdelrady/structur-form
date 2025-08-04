@@ -236,13 +236,15 @@ const FormFieldEditor = ({ field, allFields, onUpdateField, onClose }: FormField
                             onChange={(e) => updateOption(index, 'value', e.target.value)}
                             className="flex-1"
                           />
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removeOption(index)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          {!field.isComeFromApi && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeOption(index)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
